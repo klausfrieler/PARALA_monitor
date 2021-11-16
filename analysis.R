@@ -103,10 +103,8 @@ parse_PARALA_results <- function(res){
 }
 read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
-  
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
   map_dfr(results, function(res){
-    #browser()
     parse_PARALA_results(res)
   })
 }

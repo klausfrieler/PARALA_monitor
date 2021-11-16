@@ -19,9 +19,9 @@ source("plot_util.R")
 
 on_server <- grepl("shiny-server", getwd())
 if(on_server){
-    result_dir <- "../earworms/output/results"
+    result_dir <- "../PARALA/output/results"
 } else{
-    result_dir <- "data/results"
+    result_dir <- "data/from_server"
 }
 
 setup_workspace(result_dir)
