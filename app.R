@@ -14,7 +14,7 @@ library(pcalg)
 library(networkD3)
 library(igraph)
 
-#source("analysis.R")
+source("analysis.R")
 source("plot_util.R")
 
 on_server <- grepl("shiny-server", getwd())
