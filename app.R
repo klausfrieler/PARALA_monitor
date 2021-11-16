@@ -27,12 +27,15 @@ if(on_server){
 setup_workspace(result_dir)
 
 var_choices <- setdiff(names(master), c("p_id",
-                                       "time_started", 
+                                       "session.time_started", 
                                        "time_ended", 
                                        "pilot", 
-                                       "complete", 
+                                       "session.complete", 
                                        "num_restarts", 
-                                       "language", "DEG.gender", "DEG.age"))
+                                       "DEG.first_language", 
+                                       "DEG.second_language", 
+                                       "DEG.gender", 
+                                       "DEG.age"))
 var_types <- c("categorial", "numeric")[1 + map_lgl(var_choices, ~{(master[[.x]] %>% class())[1] == "numeric"})]
 var_data <- tibble(variable = var_choices, type = var_types)
 
@@ -60,7 +63,7 @@ impressum <- function(){
         shiny::tags$br(),
         shiny::tags$br(), 
         "PI", 
-        shiny::p("PD Dr. Ines Schindler, Prof. Winfried Menninghaus, Dr. Stefan Blohm, Dr. Valentin Wagner"), 
+        shiny::p("PD Dr. Ines Schindler, Prof. Winfried Menninghaus, Dr. Stefan Blohm, Dr. Valentin Wagner, Anne Siebrasse (M.Sc.)"), 
         shiny::tags$br(),
         shiny::tags$br(), 
         "Powered by",
@@ -90,8 +93,7 @@ ui_new <-
                       selectizeInput("study_filter", 
                                      "Filter:", 
                                      c("---", 
-                                       "Music Students", 
-                                       "No Music Students", "<30", 
+                                       "<30", 
                                        "30+"), multiple = F), 
                       impressum(),
                       downloadButton("download_all_data_csv", "Download data"),
