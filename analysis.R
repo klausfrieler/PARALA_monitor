@@ -58,13 +58,18 @@ parse_PARALA_results <- function(res){
   ret <- 
     map_dfc(names(res), function(test){
       #browser()
+      #messagef("Parsing test %s", test)
       if(test %in% c("RAT", "MDT", "MIQ")){
         res[[test]] %>% as_tibble() %>% select(!starts_with("q")) %>% set_names(sprintf("%s.%s", test, names(.) %>% tolower() %>% str_replace(" ", "_")))
       }
       else if(test == "SRP"){
         tmp <- res[[test]] %>% as.data.frame(stringsAsFactors = F)
+        var_names <- c("SRP.technical_problems", "SRP.technical_problems_desc", "SRP.focus", "SRP.user_feedback")
+        if(length(tmp) != 4){
+          var_names <- c("SRP.technical_problems", "SRP.technical_problems_desc", "SRP.focus")
+        }
         tmp[[1]] <- c("no", "yes")[as.integer(tmp[[1]])]
-        names(tmp) <- c("SRP.technical_problems", "SRP.technical_problems_desc", "SRP.focus")
+        names(tmp) <- var_names
         tmp
       }
       else if(test %in% c("PRF", "WMM", "SRP")){
@@ -83,6 +88,10 @@ parse_PARALA_results <- function(res){
         })
       }
       else{
+        if(length(res[[test]]) != length(unique(names(res[[test]])))){
+          messagef("Found duplicated names in %s", test)
+          res[[test]] <- res[[test]][unique(names(res[[test]]))]
+        }
         data <- 
           res[[test]] %>% 
           as_tibble() %>% 
@@ -105,10 +114,15 @@ read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
   map_dfr(results, function(res){
-    parse_PARALA_results(res)
+    ret <- tryCatch({parse_PARALA_results(res)}, 
+                    error = function(e){})
+
+    ret
   })
 }
+
 setup_workspace <- function(results = "data/results"){
+  #browser()
   master <- read_data(results)
   master$DEG.gender[is.na(master$DEG.gender)] <- sample(1:4, size = sum(is.na(master$DEG.gender)), replace = T)
   master <- master %>% mutate(age = round(DEG.age/12), 
