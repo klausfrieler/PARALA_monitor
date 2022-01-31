@@ -38,7 +38,6 @@ var_choices <- setdiff(names(master), c("p_id",
                                        # "DEG.gender", 
                                        # "DEG.age"
                                        ))
-print(var_choices)
 var_types <- c("categorial", "numeric")[1 + map_lgl(var_choices, ~{(master[[.x]] %>% class())[1] == "numeric"})]
 var_data <- tibble(variable = var_choices, type = var_types)
 var_data <- tibble(variable = var_choices, type = var_types)
