@@ -186,11 +186,11 @@ apply_filters <- function(data, input){
     
   }
   else if(filter_val == "<30"){
-    data <- data %>% filter(age_group == "<30")
+    data <- data %>% filter(DEG.age_group == "<30")
     
   }
   else if(filter_val == "30+"){
-    data <- data %>% filter(age_group == "30+")
+    data <- data %>% filter(DEG.age_group == "30+")
     
   }
   data
@@ -217,19 +217,20 @@ server <- function(input, output, session) {
       #data <- apply_filters(master, input)
       data <- master
       p_id_stats <- master %>% 
-         distinct(p_id, gender, age, GMS.general, session.complete) %>% 
-         summarise(n_female = sum(gender == "female", na.rm = T), 
-                   n_male = sum(gender == "male", na.rm = T), 
-                   n_other = sum(gender == "other", na.rm = T), 
-                   n_not_say = sum(gender == "not_say", na.rm = T), 
-                   mean_age = mean(age, na.rm = T), 
+         distinct(p_id, DEG.gender, DEG.age, GMS.general, session.complete, SEL.status, SEL.group) %>% 
+         summarise(n_female = sum(DEG.gender == "female", na.rm = T), 
+                   n_male = sum(DEG.gender == "male", na.rm = T), 
+                   n_other = sum(DEG.gender == "other", na.rm = T), 
+                   n_not_say = sum(DEG.gender == "not_say", na.rm = T), 
+                   mean_age = mean(DEG.age, na.rm = T), 
                    mean_GMS = mean(GMS.general, na.rm = T), 
                    n_unique = n(),
+                   n_include  = sum(SEL.status == "in"), 
                    n_complete = sum(session.complete, na.rm = T),
                    .groups = "drop")
       p_id_stats %>% 
-         select(n_unique, n_complete, starts_with("n"), mean_age, mean_GMS, everything()) %>% 
-          set_names("Total N", "Completed", "Females", "Males", "Other", "Rather not say", "Mean Age", "Mean GMS General") 
+         select(n_unique, n_complete, n_include, starts_with("n"), mean_age, mean_GMS, everything()) %>% 
+          set_names("Total N", "Completed", "Includes", "Females", "Males", "Other", "Rather not say", "Mean Age", "Mean GMS General") 
       })
    
     output$raw_data <- renderDataTable({
@@ -237,9 +238,9 @@ server <- function(input, output, session) {
       #data <- apply_filters(master, input)
       data <- master
       data %>% 
-           select(-p_id,  -DEG.age, -DEG.gender) %>% 
+           select(-p_id) %>% 
            mutate_if(is.numeric, round, 2) %>% 
-           select(session.time_started, DEG.first_language, session.complete, age, gender, everything())
+           select(session.time_started, SEL.status, SEL.group, DEG.first_language, session.complete, DEG.age, DEG.gender, everything())
    }, options = list(lengthMenu = list(c(25, 50,  -1), c("25", "50",  "All"))))
    
   output$univariate_plot <- renderPlot({

@@ -57,10 +57,14 @@ join_rows <- function(data){
 parse_PARALA_results <- function(res){
   ret <- 
     map_dfc(names(res), function(test){
-      #browser()
       #messagef("Parsing test %s", test)
       if(test %in% c("RAT", "MDT", "MIQ")){
         res[[test]] %>% as_tibble() %>% select(!starts_with("q")) %>% set_names(sprintf("%s.%s", test, names(.) %>% tolower() %>% str_replace(" ", "_")))
+      }
+      else if(test == "LIQ"){
+        tmp <- mpipoet:::parse_LIQ_results(res)
+        #browser()
+        tmp
       }
       else if(test == "SRP"){
         tmp <- res[[test]] %>% as.data.frame(stringsAsFactors = F)
@@ -125,16 +129,17 @@ setup_workspace <- function(results = "data/results"){
   #browser()
   master <- read_data(results)
   master$DEG.gender[is.na(master$DEG.gender)] <- sample(1:4, size = sum(is.na(master$DEG.gender)), replace = T)
-  master <- master %>% mutate(age = round(DEG.age/12), 
-                              gender = factor(DEG.gender, 
-                                              levels = 1:4, 
-                                              labels = c("female", "male", "other", "rather not say")))
+  master <- master %>% mutate(DEG.age = round(DEG.age/12), 
+                              DEG.gender = factor(DEG.gender, 
+                                                  levels = 1:4, 
+                                                  labels = c("female", "male", "other", "rather not say")))
   
-  master$age[is.na(master$age)] <- 99
+  master$DEG.age[is.na(master$DEG.age)] <- 99
   master <- master %>% 
-    mutate(age_group = age > 30) %>% 
-    mutate(age_group = factor(age_group, labels = c("<30", "30+"))) %>% filter(!is.na(EDU.education))
-  names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
+    mutate(DEG.age_group = DEG.age > 30) %>% 
+    mutate(DEG.age_group = factor(DEG.age_group, labels = c("<30", "30+"))) %>% filter(!is.na(EDU.education))
+  #names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
+  master <- add_participant_selection(master)
   assign("master", master, globalenv())
 }
 
@@ -144,3 +149,37 @@ get_correlations <- function(data, var_x, var_y, method = "pearson"){
   return(ct %>% broom::tidy())     
 }
 
+recode_na <- function(x, new_value = FALSE){
+  x[is.na(x)] <- new_value
+  x
+}
+  
+na_to_false <- function(x){
+  recode_na(x)
+}
+
+na_to_true <- function(x){
+  recode_na(x, TRUE)
+}
+
+add_participant_selection <- function(data){
+  no_take_part <- (data$WMM.wants_take_part == "no") %>% na_to_true()
+  not_focussed <- (data$SRP.focus < 3) %>% na_to_true()
+  knows_target_authors <- (as.numeric(data$AUT.author4) >2 &  as.numeric(data$AUT.author7) >2) %>% na_to_true()
+  bad_reader <- (data$SLS.perc_correct_total < .5) %>% na_to_true()
+  non_native_speaker <- (data$DEG.first_language != "de") %>% na_to_true()
+  poem_pref <- c(1, 1, 2, 2, 2, 3, 3)[data$LIQ.pref_poetry] %>% recode_na(new_value = 0)
+  poem_pref[data$LIQ.poetry_reading_peak < 1] <-  0 
+  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] <-  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] - 1
+  poem_pref[data$LIQ.poetry_reading_peak < 1] <-  1
+  poem_pref[poem_pref < 1] <-  1
+  status <- no_take_part | not_focussed | knows_target_authors | bad_reader | non_native_speaker
+  good_rhythm <- (data$RAT.ability > 0) %>% na_to_false()
+  parala_group <- sprintf("poetry_%s.rhythm_%s", 
+                          c("low", "medium", "high")[poem_pref],
+                          c("low", "high")[good_rhythm + 1]
+                          )
+  #parala_group <- c("poetry_low.rhythml", "pl_rl", "pm_rl", "pm_rh", "ph_rl", "ph_rh") [(poem_pref -1) * 2 + as.integer(good_rhythm)  + 1]
+  #browser()
+  data %>% mutate(SEL.status = c("in", "out")[status + 1], SEL.group = parala_group)
+}
