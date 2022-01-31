@@ -33,10 +33,14 @@ var_choices <- setdiff(names(master), c("p_id",
                                        "session.complete", 
                                        "num_restarts", 
                                        "DEG.first_language", 
-                                       "DEG.second_language", 
-                                       "DEG.gender", 
-                                       "DEG.age"))
+                                       "DEG.second_language"
+                                       # , 
+                                       # "DEG.gender", 
+                                       # "DEG.age"
+                                       ))
+print(var_choices)
 var_types <- c("categorial", "numeric")[1 + map_lgl(var_choices, ~{(master[[.x]] %>% class())[1] == "numeric"})]
+var_data <- tibble(variable = var_choices, type = var_types)
 var_data <- tibble(variable = var_choices, type = var_types)
 
 
@@ -120,7 +124,7 @@ ui_new <-
                 "Univariate",
                 sidebarLayout(
                     sidebarPanel(
-                        selectizeInput("uv_variable", "Variable:", var_choices, multiple = F), 
+                        selectizeInput("uv_variable", "Variable:", var_choices, selected = "SEL.group", multiple = F), 
                         impressum(),
                         width = 2
                     ),
@@ -136,8 +140,8 @@ ui_new <-
                 "Bivariate",
                 sidebarLayout(
                     sidebarPanel(
-                        selectizeInput("bv_variable1", "Variable X:", var_choices, selected = "JAJ.ability", multiple = F), 
-                        selectizeInput("bv_variable2", "Variable y:", var_choices, selected = "IMI.earworm_frequency", multiple = F), 
+                        selectizeInput("bv_variable1", "Variable X:", var_choices, selected = "DEG.gender", multiple = F), 
+                        selectizeInput("bv_variable2", "Variable y:", var_choices, selected = "SEL.group", multiple = F), 
                         actionButton("switch_axes", 
                                      label = "Switch axes", style = "margin-bottom: 10px"),
                         impressum(),
@@ -248,9 +252,12 @@ server <- function(input, output, session) {
     #data <- apply_filters(master, input)
     data <- master
     var_info <- var_data %>% filter(variable == input$uv_variable)
+    if(nrow(var_info) == 0){
+      return()
+    }
     if(var_info$type == "numeric"){
       q <- univariate_plot_numeric(data, input$uv_variable, remove_na = T)
-      } 
+    } 
     else if (var_info$type == "categorial"){
       coord_flip <- n_distinct(data[[input$uv_variable]]) > 3
       q <- univariate_plot_categorial(data, input$uv_variable,  remove_na = T, coord_flip = coord_flip)

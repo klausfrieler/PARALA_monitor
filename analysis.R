@@ -54,6 +54,18 @@ join_rows <- function(data){
   ret %>% bind_rows(fixed_rows) 
 }
 
+get_test_duration <- function(start_time, end_time, num_restarts){
+  if(length(num_restarts) > 1){
+    map2_dbl(start_time, end_time, function(st, et){
+      get_test_duration(st, et, 0)
+    }) %>% sum()
+  }
+  if(num_restarts > 0) {
+    return(NA)
+  }
+  difftime(end_time, start_time, units = "mins") %>% as.numeric()
+}
+
 parse_PARALA_results <- function(res){
   ret <- 
     map_dfc(names(res), function(test){
@@ -65,6 +77,9 @@ parse_PARALA_results <- function(res){
         tmp <- mpipoet:::parse_LIQ_results(res)
         #browser()
         tmp
+      }
+      else if(test == "results"){
+        print(test$results)
       }
       else if(test == "SRP"){
         tmp <- res[[test]] %>% as.data.frame(stringsAsFactors = F)
@@ -105,11 +120,18 @@ parse_PARALA_results <- function(res){
       }
     })
   if("session" %in% names(res)){
-    ret <- ret %>% mutate(p_id = session.p_id) %>% select(-session.p_id, 
-                                                          -session.pilot, 
-                                                          -session.current_time, 
-                                                          -session.language, 
-                                                          -session.num_restarts) %>% 
+    if(length(ret$session.time_started) > 1){
+      browser()
+    }
+    test_duration <- get_test_duration(ret$session.time_started, ret$session.current_time, ret$session.num_restarts)
+    ret <- ret %>% 
+      mutate(p_id = session.p_id, 
+             session.test_duration = test_duration) %>% 
+      select(-session.p_id, 
+             -session.pilot, 
+             -session.current_time, 
+             -session.language, 
+             -session.num_restarts) %>% 
       select(p_id, everything())
   }
   ret
@@ -117,6 +139,8 @@ parse_PARALA_results <- function(res){
 read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
+  assign("res", results, globalenv())
+  
   map_dfr(results, function(res){
     ret <- tryCatch({parse_PARALA_results(res)}, 
                     error = function(e){})
@@ -168,18 +192,18 @@ add_participant_selection <- function(data){
   knows_target_authors <- (as.numeric(data$AUT.author4) >2 &  as.numeric(data$AUT.author7) >2) %>% na_to_true()
   bad_reader <- (data$SLS.perc_correct_total < .5) %>% na_to_true()
   non_native_speaker <- (data$DEG.first_language != "de") %>% na_to_true()
+  too_fast <- !is.na(data$session.test_duration) & data$session.test_duration < 30
   poem_pref <- c(1, 1, 2, 2, 2, 3, 3)[data$LIQ.pref_poetry] %>% recode_na(new_value = 0)
   poem_pref[data$LIQ.poetry_reading_peak < 1] <-  0 
   poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] <-  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] - 1
   poem_pref[data$LIQ.poetry_reading_peak < 1] <-  1
   poem_pref[poem_pref < 1] <-  1
-  status <- no_take_part | not_focussed | knows_target_authors | bad_reader | non_native_speaker
+  status <- no_take_part | not_focussed | knows_target_authors | bad_reader | non_native_speaker | too_fast
   good_rhythm <- (data$RAT.ability > 0) %>% na_to_false()
   parala_group <- sprintf("poetry_%s.rhythm_%s", 
                           c("low", "medium", "high")[poem_pref],
                           c("low", "high")[good_rhythm + 1]
                           )
   #parala_group <- c("poetry_low.rhythml", "pl_rl", "pm_rl", "pm_rh", "ph_rl", "ph_rh") [(poem_pref -1) * 2 + as.integer(good_rhythm)  + 1]
-  #browser()
   data %>% mutate(SEL.status = c("in", "out")[status + 1], SEL.group = parala_group)
 }
