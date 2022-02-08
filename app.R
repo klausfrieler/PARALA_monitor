@@ -91,7 +91,7 @@ ui_new <-
     shiny::shinyUI(
         navbarPage(
             title = "PARALA Speech & Music", 
-            theme = shinytheme("spacelab"),
+            theme = shinytheme("yeti"),
             id = "tabs",
             tabPanel(
                 "Home",
