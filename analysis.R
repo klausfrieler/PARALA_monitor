@@ -190,7 +190,7 @@ add_participant_selection <- function(data){
   no_take_part <- (data$WMM.wants_take_part == "no") %>% na_to_true()
   not_focussed <- (data$SRP.focus < 3) %>% na_to_true()
   knows_target_authors <- (as.numeric(data$AUT.author4) >2 &  as.numeric(data$AUT.author7) >2) %>% na_to_true()
-  bad_reader <- (data$SLS.perc_correct_total < .5) %>% na_to_true()
+  bad_reader <- (data$SLS.perc_correct_total < .5) %>% na_to_false()
   non_native_speaker <- (data$DEG.first_language != "de") %>% na_to_true()
   too_fast <- !is.na(data$session.test_duration) & data$session.test_duration < 30
   poem_pref <- c(1, 1, 2, 2, 2, 3, 3)[data$LIQ.pref_poetry] %>% recode_na(new_value = 0)

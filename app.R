@@ -97,13 +97,13 @@ ui_new <-
                 "Home",
                 sidebarLayout(
                     sidebarPanel(
-                      selectizeInput("study_filter", 
-                                     "Filter:", 
+                      selectizeInput("include_filter_home", 
+                                     "Filter Status:", 
                                      c("---", 
-                                       "<30", 
-                                       "30+"), multiple = F), 
+                                       "In", 
+                                       "Out"), multiple = F), 
                       impressum(),
-                      downloadButton("download_all_data_csv", "Download data"),
+                      downloadButton("download_all_data_csv", "Download data (CSV)"),
                       checkboxInput("dec", label = "Use German Format", value = 0),
                       
                         width = 2
@@ -114,7 +114,7 @@ ui_new <-
                         htmlOutput("introduction"),
                         h4("Summary"),
                         tableOutput("overall_stats"),
-                        htmlOutput("model_tab")
+                        tableOutput("selection_group_stats")
                     )
                     
                 )
@@ -124,6 +124,11 @@ ui_new <-
                 sidebarLayout(
                     sidebarPanel(
                         selectizeInput("uv_variable", "Variable:", var_choices, selected = "SEL.group", multiple = F), 
+                        selectizeInput("include_filter_univariate", 
+                                       "Filter Status:", 
+                                       c("---", 
+                                         "In", 
+                                         "Out"), multiple = F), 
                         impressum(),
                         width = 2
                     ),
@@ -143,6 +148,11 @@ ui_new <-
                         selectizeInput("bv_variable2", "Variable y:", var_choices, selected = "SEL.group", multiple = F), 
                         actionButton("switch_axes", 
                                      label = "Switch axes", style = "margin-bottom: 10px"),
+                        selectizeInput("include_filter_bivariate", 
+                                       "Filter Status:", 
+                                       c("---", 
+                                         "In", 
+                                         "Out"), multiple = F), 
                         impressum(),
                         width = 2
                     ),
@@ -160,7 +170,12 @@ ui_new <-
                 "Data",
                 sidebarLayout(
                     sidebarPanel(
-                        impressum(),
+                      selectizeInput("include_filter_data", 
+                                     "Filter Status:", 
+                                     c("---", 
+                                       "In", 
+                                       "Out"), multiple = F), 
+                      impressum(),
                         width = 2
                     ),
                     
@@ -174,27 +189,16 @@ ui_new <-
 
 apply_filters <- function(data, input){
   tabs <- input$tabs
-  if(tabs == "Home"){
-    filter_val <- input$study_filter
-  }
-  else{
-    return(data)
-  }
-  #print(input$pc_study_filter)
-  if(filter_val == "Music Students"){
-    data <- data %>% filter(music_studies == "Music Student")
-  }
-  else if(filter_val == "No Music Students"){
-    data <- data %>% filter(music_studies != "Music Student")
-    
-  }
-  else if(filter_val == "<30"){
-    data <- data %>% filter(DEG.age_group == "<30")
-    
-  }
-  else if(filter_val == "30+"){
-    data <- data %>% filter(DEG.age_group == "30+")
-    
+  #browser()
+  filter_val <- input[[sprintf("include_filter_%s", tolower(tabs))]] %>% tolower()
+  # if(tabs != "Home"){
+  #   filter_val <- input[[sprintf("include_filter_%s", tolower(tabs))]] %>% tolower()
+  # }
+  # else{
+  #   return(data)
+  # }
+  if(substr(filter_val, 1, 1)  != "-"){
+    data <- data %>% filter(SEL.status == filter_val)
   }
   data
 }
@@ -212,12 +216,13 @@ server <- function(input, output, session) {
                             selected = x)
        
    })
+   
    output$introduction <- renderUI({
      get_intro_text()
    })
+   
    output$overall_stats <- renderTable({
       check_data()
-      #data <- apply_filters(master, input)
       data <- master
       p_id_stats <- master %>% 
          distinct(p_id, DEG.gender, DEG.age, GMS.general, session.complete, SEL.status, SEL.group) %>% 
@@ -236,10 +241,25 @@ server <- function(input, output, session) {
           set_names("Total N", "Completed", "Includes", "Females", "Males", "Other", "Rather not say", "Mean Age", "Mean GMS General") 
       })
    
+    output$selection_group_stats <- renderTable({check_data()
+      data <- apply_filters(master, input)
+      sel_group_total_stats <- data %>% 
+        count(SEL.group) %>% mutate(DEG.gender = "total")
+        
+      sel_group_stats <- data %>% 
+        count(SEL.group, DEG.gender) %>% 
+        bind_rows(sel_group_total_stats) %>% 
+        pivot_wider(id_cols = SEL.group, values_from = n, names_from = DEG.gender, values_fill = 0) %>% 
+        mutate(Group = str_replace_all(SEL.group, "[.]", " / ") %>% str_replace_all("_", " ") %>% str_to_title()) 
+      sel_group_stats %>% 
+        select(-SEL.group) %>% 
+        select(Group, total, everything()) %>% 
+        set_names(str_to_title(names(.)))
+    })
     output$raw_data <- renderDataTable({
       check_data()
-      #data <- apply_filters(master, input)
-      data <- master
+      data <- apply_filters(master, input)
+      #data <- master
       data %>% 
            select(-p_id) %>% 
            mutate_if(is.numeric, round, 2) %>% 
@@ -248,8 +268,8 @@ server <- function(input, output, session) {
    
   output$univariate_plot <- renderPlot({
     check_data()
-    #data <- apply_filters(master, input)
-    data <- master
+    data <- apply_filters(master, input)
+    #data <- master
     var_info <- var_data %>% filter(variable == input$uv_variable)
     if(nrow(var_info) == 0){
       return()
@@ -269,8 +289,8 @@ server <- function(input, output, session) {
 
   output$bivariate_plot <- renderPlot({
     check_data()
-    #data <- apply_filters(master, input)
-    data <- master
+    data <- apply_filters(master, input)
+    #data <- master
        
     #browser()
     if(input$bv_variable1 == input$bv_variable2){
@@ -292,7 +312,9 @@ server <- function(input, output, session) {
       filename = "PARALA_data.csv",
       content = function(file) {
         dec <- ifelse(input$dec, ",", ".") 
-        write.table(master %>% mutate_if(is.logical, as.integer), 
+        data <- apply_filters(master, input)
+        
+        write.table(data %>% mutate_if(is.logical, as.integer), 
                     file, 
                     row.names = FALSE, 
                     dec = dec, 
