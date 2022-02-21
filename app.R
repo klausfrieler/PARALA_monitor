@@ -103,7 +103,8 @@ ui_new <-
                                        "In", 
                                        "Out"), multiple = F), 
                       impressum(),
-                      downloadButton("download_all_data_csv", "Download data (CSV)"),
+                      downloadButton("download_all_data_csv", "Download data (CSV)", style = "margin: 5px;width:80%"),
+                      downloadButton("download_all_data_xlsx", "Download data (XLSX)", style = "margin: 5px;width:80%"),
                       checkboxInput("dec", label = "Use German Format", value = 0),
                       
                         width = 2
@@ -201,6 +202,16 @@ apply_filters <- function(data, input){
     data <- data %>% filter(SEL.status == filter_val)
   }
   data
+}
+file_name_from_filter <- function(base_name = "PARALA_data", ext = c("xlsx"), input){
+  filter_val <- input[[sprintf("include_filter_%s", tolower(input$tabs))]] %>% tolower()
+  if(substr(filter_val, 1, 1)  == "-"){
+    sprintf("%s.%s", base_name, ext)
+  }
+  else{
+    sprintf("%s_%s.%s", base_name, filter_val, ext)
+    
+  }
 }
 # Define server logic required to draw a plot
 server <- function(input, output, session) {
@@ -321,6 +332,17 @@ server <- function(input, output, session) {
                     sep = ";", 
                     quote = T, 
                     fileEncoding = "utf-8")
+      }
+    )
+
+    output$download_all_data_xlsx <- downloadHandler(
+      filename =  "PARALA_data.xlsx",
+      #filename = file_name_from_filter(input = input),
+      content = function(file) {
+        data <- apply_filters(master, input)
+        #messagef("%d", nrow(data))
+        writexl::write_xlsx(data %>% mutate_if(is.logical, as.integer), path = file)
+        
       }
     )
     
