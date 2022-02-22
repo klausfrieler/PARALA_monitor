@@ -93,7 +93,7 @@ ui_new <-
         navbarPage(
             title = "PARALA Speech & Music", 
             #theme = shinytheme("yeti"),
-            theme = bslib::bs_theme(version = 4, bootswatch = "yeti", base_font = font_google("Fira Mono")),
+            theme = bslib::bs_theme(version = 4, bootswatch = "yeti", base_font = bslib::font_google("Fira Mono")),
             id = "tabs",
             tabPanel(
                 "Home",
