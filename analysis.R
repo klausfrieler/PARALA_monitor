@@ -126,7 +126,7 @@ parse_PARALA_results <- function(res){
     test_duration <- get_test_duration(ret$session.time_started, ret$session.current_time, ret$session.num_restarts)
     ret <- ret %>% 
       mutate(p_id = session.p_id, 
-             session.test_duration = test_duration) %>% 
+             session.test_duration_min = test_duration) %>% 
       select(-session.p_id, 
              -session.pilot, 
              -session.current_time, 
@@ -192,7 +192,7 @@ add_participant_selection <- function(data){
   knows_target_authors <- (as.numeric(data$AUT.author4) >2 &  as.numeric(data$AUT.author7) >2) %>% na_to_true()
   bad_reader <- (data$SLS.perc_correct_total < .5) %>% na_to_false()
   non_native_speaker <- (data$DEG.first_language != "de") %>% na_to_true()
-  too_fast <- !is.na(data$session.test_duration) & data$session.test_duration < 30
+  too_fast <- !is.na(data$session.test_duration_min) & data$session.test_duration_min < 30
   poem_pref <- c(1, 1, 2, 2, 2, 3, 3)[data$LIQ.pref_poetry] %>% recode_na(new_value = 0)
   poem_pref[data$LIQ.poetry_reading_peak < 1] <-  0 
   poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] <-  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] - 1
