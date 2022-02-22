@@ -66,7 +66,8 @@ impressum <- function(){
         shiny::tags$br(),
         shiny::tags$br(), 
         "PI", 
-        shiny::p("PD Dr. Ines Schindler, Prof. Winfried Menninghaus, Dr. Stefan Blohm, Dr. Valentin Wagner, Anne Siebrasse (M.Sc.)"), 
+        shiny::p("PD Dr. Ines Schindler, Prof. Winfried Menninghaus, Dr. Stefan Blohm, Dr. Valentin Wagner, Anne Siebrasse (M.Sc.)", 
+                 style = "font-size: 10pt; display: block"), 
         shiny::tags$br(),
         shiny::tags$br(), 
         "Powered by",
@@ -103,8 +104,8 @@ ui_new <-
                                        "In", 
                                        "Out"), multiple = F), 
                       impressum(),
-                      downloadButton("download_all_data_csv", "Download data (CSV)", style = "margin: 5px;width:80%"),
-                      downloadButton("download_all_data_xlsx", "Download data (XLSX)", style = "margin: 5px;width:80%"),
+                      downloadButton("download_all_data_csv", "Download data (CSV)", style = "margin: 5px;width:80%;font-size:12pt"),
+                      downloadButton("download_all_data_xlsx", "Download data (XLSX)", style = "margin: 5px;width:80%;font-size:12pt"),
                       checkboxInput("dec", label = "Use German Format", value = 0),
                       
                         width = 2
