@@ -164,6 +164,7 @@ setup_workspace <- function(results = "data/results"){
     mutate(DEG.age_group = factor(DEG.age_group, labels = c("<30", "30+"))) %>% filter(!is.na(EDU.education))
   #names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
   master <- add_participant_selection(master)
+  master <- master %>% mutate(match_id = p_id == trimws(WMM_prolific_id))
   assign("master", master, globalenv())
 }
 
@@ -194,9 +195,8 @@ add_participant_selection <- function(data){
   non_native_speaker <- (data$DEG.first_language != "de") %>% na_to_true()
   too_fast <- !is.na(data$session.test_duration_min) & data$session.test_duration_min < 30
   poem_pref <- c(1, 1, 2, 2, 2, 3, 3)[data$LIQ.pref_poetry] %>% recode_na(new_value = 0)
-  poem_pref[data$LIQ.poetry_reading_peak < 1] <-  0 
-  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] <-  poem_pref[poem_pref ==3 & data$LIQ.poetry_reading_peak < 1] - 1
-  poem_pref[data$LIQ.poetry_reading_peak < 1] <-  1
+  poem_pref[poem_pref >= 3 & data$LIQ.poetry_reading_peak < 1] <-  2
+  poem_pref[poem_pref <= 1 & data$LIQ.poetry_reading_peak >= 1] <-  2
   poem_pref[poem_pref < 1] <-  1
   status <- no_take_part | not_focussed | knows_target_authors | bad_reader | non_native_speaker | too_fast
   good_rhythm <- (data$RAT.ability > 0) %>% na_to_false()

@@ -9,10 +9,12 @@
 library(shiny)
 library(shinythemes)
 library(DT)
-library(sjPlot)
-library(pcalg)
-library(networkD3)
-library(igraph)
+#library(sjPlot)
+#library(pcalg)
+#library(networkD3)
+#library(igraph)
+library(thematic)
+thematic_shiny()
 
 source("analysis.R")
 source("plot_util.R")
@@ -20,6 +22,7 @@ source("plot_util.R")
 on_server <- grepl("shiny-server", getwd())
 if(on_server){
     result_dir <- "../PARALA/output/results"
+    options(shiny.autoreload = TRUE)
 } else{
     result_dir <- "data/from_server"
 }
@@ -93,7 +96,7 @@ ui_new <-
         navbarPage(
             title = "PARALA Speech & Music", 
             #theme = shinytheme("yeti"),
-            theme = bslib::bs_theme(version = 4, bootswatch = "yeti", base_font = bslib::font_google("Fira Mono")),
+            theme = bslib::bs_theme(version = 4, bootswatch = "sketchy", base_font = bslib::font_google("Fira Mono")),
             id = "tabs",
             tabPanel(
                 "Home",

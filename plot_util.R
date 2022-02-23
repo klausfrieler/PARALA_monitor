@@ -1,12 +1,19 @@
-def_colour1 <- "#1f77b4" 
-def_colour2 <- "#ff7f0e"
-def_colour3 <- "green"
+# def_colour1 <- "#1f77b4" 
+# def_colour2 <- "#ff7f0e"
+# def_colour3 <- "green"
+def_colour1 <- thematic::okabe_ito(3)[1]
+def_colour2 <- thematic::okabe_ito(3)[2]
+def_colour3 <- thematic::okabe_ito(3)[3]
 uv_alpha <- .7
 bv_alpha <- .7
 long_alpha <- .7
 default_text_size <- 16
 
 library(corrr)
+#library(showtext)
+#font_add_google("Fira Sans", "firasans")
+#showtext_auto()
+
 #library(ppcor)
 select <- dplyr::select
 default_grid_color <- "gray64"
@@ -14,18 +21,10 @@ correlation_background_color <- "gray72"
 get_display_name <-function(var_name){
   var_name
 }
-prepare_EWE_categorials <-function(data, var, var_data){
-  EWE_cats <- var_data %>% filter(str_detect(variable, "EWE"), type =="categorial") %>% pull(variable)
-  if(var %in% EWE_cats){
-    data <- data %>% group_by(p_id) %>% 
-      summarise( !!sym(var) := split_multi_entry(!!sym(var)), .groups = "drop") %>% 
-      mutate(!!sym(var) := str_trunc(!!sym(var), 30, "center"))     
-  }
-  data <- data %>% select(p_id, !!sym(var))  
-}
 get_default_theme <- function(x_rotate = 0, keep_legend = F){
   t <- theme_minimal()
   t <- t + theme(strip.text = element_text(size = round(default_text_size*.75), hjust = 0))
+  #t <- t + theme(text = element_text(family = 'firasans', size = default_text_size))
   t <- t + theme(text = element_text(size = default_text_size))
   t <- t + theme(axis.title.x = element_text(size = default_text_size, vjust = -.5))
   t <- t + theme(plot.title = element_text(hjust=0))
