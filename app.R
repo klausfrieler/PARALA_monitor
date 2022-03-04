@@ -24,7 +24,7 @@ if(on_server){
     result_dir <- "../PARALA/output/results"
     options(shiny.autoreload = TRUE)
 } else{
-    result_dir <- "data/from_server"
+    result_dir <- "data/from_server2"
 }
 
 setup_workspace(result_dir)
@@ -57,7 +57,7 @@ get_intro_text <- function(){
 }
 
 impressum <- function(){
-    p(
+    shiny::p(
         "PARALA Monitor  v0.2", 
         shiny::tags$br(), 
         shiny::tags$br(), 
@@ -220,18 +220,21 @@ file_name_from_filter <- function(base_name = "PARALA_data", ext = c("xlsx"), in
 }
 # Define server logic required to draw a plot
 server <- function(input, output, session) {
-   message("*** STARTING APP***")
-   check_data <- reactiveFileReader(1000, session, result_dir, setup_workspace)
+
+  message("*** STARTING APP***")
+  #browser()
+  check_data <- reactiveFileReader(1000, session, result_dir, setup_workspace)
    
-   shiny::observeEvent(input$switch_axes, {
-       x <- input$bv_variable1
-       y <- input$bv_variable2
-       updateSelectizeInput(session, inputId = "bv_variable1",
-                            selected = y)
-       updateSelectizeInput(session, inputId = "bv_variable2",
-                            selected = x)
-       
-   })
+  shiny::observeEvent(input$switch_axes, {
+    x <- input$bv_variable1
+
+    y <- input$bv_variable2
+    updateSelectizeInput(session, inputId = "bv_variable1",
+                         selected = y)
+    updateSelectizeInput(session, inputId = "bv_variable2",
+                          selected = x)
+     
+  })
    
    output$introduction <- renderUI({
      get_intro_text()
@@ -240,6 +243,9 @@ server <- function(input, output, session) {
    output$overall_stats <- renderTable({
       check_data()
       data <- master
+      if(nrow(master) == 0){
+        return()
+      }
       p_id_stats <- master %>% 
          distinct(p_id, DEG.gender, DEG.age, GMS.general, session.complete, SEL.status, SEL.group) %>% 
          summarise(n_female = sum(DEG.gender == "female", na.rm = T), 
@@ -257,7 +263,12 @@ server <- function(input, output, session) {
           set_names("Total N", "Completed", "Includes", "Females", "Males", "Other", "Rather not say", "Mean Age", "Mean GMS General") 
       })
    
-    output$selection_group_stats <- renderTable({check_data()
+    output$selection_group_stats <- renderTable({
+      check_data()
+      if(nrow(master) == 0){
+        return()
+      }
+      
       data <- apply_filters(master, input)
       sel_group_total_stats <- data %>% 
         count(SEL.group) %>% mutate(DEG.gender = "total")
@@ -274,6 +285,9 @@ server <- function(input, output, session) {
     })
     output$raw_data <- renderDataTable({
       check_data()
+      if(nrow(master) == 0){
+        return()
+      }
       data <- apply_filters(master, input)
       #data <- master
       data %>% 
@@ -284,6 +298,9 @@ server <- function(input, output, session) {
    
   output$univariate_plot <- renderPlot({
     check_data()
+    if(nrow(master) == 0){
+      return()
+    }
     data <- apply_filters(master, input)
     #data <- master
     var_info <- var_data %>% filter(variable == input$uv_variable)
@@ -305,6 +322,10 @@ server <- function(input, output, session) {
 
   output$bivariate_plot <- renderPlot({
     check_data()
+    if(nrow(master) == 0){
+      return()
+    }
+    
     data <- apply_filters(master, input)
     #data <- master
        
@@ -317,6 +338,10 @@ server <- function(input, output, session) {
    
     output$corr_tab <- renderTable({
       check_data()
+      if(nrow(master) == 0){
+        return()
+      }
+      
       data <- apply_filters(master, input)
       vars <- get_parameters(data, input, var_data = var_data)
       if(vars$sub_type == "num-num" && input$bv_variable1 != input$bv_variable2) {
@@ -327,6 +352,10 @@ server <- function(input, output, session) {
     output$download_all_data_csv <- downloadHandler(
       filename = "PARALA_data.csv",
       content = function(file) {
+        check_data()
+        if(nrow(master) == 0){
+          return()
+        }
         dec <- ifelse(input$dec, ",", ".") 
         data <- apply_filters(master, input)
         
@@ -344,6 +373,10 @@ server <- function(input, output, session) {
       filename =  "PARALA_data.xlsx",
       #filename = file_name_from_filter(input = input),
       content = function(file) {
+        check_data()
+        if(nrow(master) == 0){
+          return()
+        }
         data <- apply_filters(master, input)
         #messagef("%d", nrow(data))
         writexl::write_xlsx(data %>% mutate_if(is.logical, as.integer), path = file)

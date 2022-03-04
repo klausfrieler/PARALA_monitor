@@ -152,6 +152,10 @@ read_data <- function(result_dir = "data/from_server"){
 setup_workspace <- function(results = "data/results"){
   #browser()
   master <- read_data(results)
+  if(nrow(master) == 0){
+    assign("master", tibble(), globalenv())
+    return()
+  }
   master$DEG.gender[is.na(master$DEG.gender)] <- sample(1:4, size = sum(is.na(master$DEG.gender)), replace = T)
   master <- master %>% mutate(DEG.age = round(DEG.age/12), 
                               DEG.gender = factor(DEG.gender, 
