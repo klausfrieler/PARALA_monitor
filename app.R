@@ -14,6 +14,7 @@ library(DT)
 #library(networkD3)
 #library(igraph)
 library(thematic)
+library(waiter)
 thematic_shiny()
 
 source("analysis.R")
@@ -24,7 +25,7 @@ if(on_server){
     result_dir <- "../PARALA/output/results"
     options(shiny.autoreload = TRUE)
 } else{
-    result_dir <- "data/from_server2"
+    result_dir <- "data/from_server"
 }
 
 setup_workspace(result_dir)
@@ -94,9 +95,13 @@ input_width <- 300
 ui_new <-   
     shiny::shinyUI(
         navbarPage(
-            title = "PARALA Speech & Music", 
+          title = "PARALA Speech & Music", 
             #theme = shinytheme("yeti"),
-            theme = bslib::bs_theme(version = 4, bootswatch = "sketchy", base_font = bslib::font_google("Fira Mono")),
+            theme = bslib::bs_theme(version = 4, 
+                                    bootswatch = "sketchy", 
+                                    base_font = bslib::font_google("Nunito")
+                                    #base_font = bslib::font_google("Fira Mono")
+                                    ),
             id = "tabs",
             tabPanel(
                 "Home",
@@ -117,6 +122,8 @@ ui_new <-
                     
                     # Main panel for displaying outputs ----
                     mainPanel(
+                        useWaiter(), 
+                        waiterPreloader(html = spin_2(), color ="white"),                      
                         htmlOutput("introduction"),
                         h4("Summary"),
                         tableOutput("overall_stats"),
@@ -208,6 +215,7 @@ apply_filters <- function(data, input){
   }
   data
 }
+
 file_name_from_filter <- function(base_name = "PARALA_data", ext = c("xlsx"), input){
   filter_val <- input[[sprintf("include_filter_%s", tolower(input$tabs))]] %>% tolower()
   if(substr(filter_val, 1, 1)  == "-"){
@@ -223,8 +231,8 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(1000, session, result_dir, setup_workspace)
-   
+  check_data <- reactiveFileReader(5000, session, result_dir, setup_workspace)
+
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
 
