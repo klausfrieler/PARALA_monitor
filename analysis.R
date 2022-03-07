@@ -1,4 +1,5 @@
 library(tidyverse)
+library(tictoc)
 
 messagef <- function(...) message(sprintf(...))
 printf <- function(...) print(sprintf(...))
@@ -67,11 +68,17 @@ get_test_duration <- function(start_time, end_time, num_restarts){
 }
 
 parse_PARALA_results <- function(res){
+  
   ret <- 
     map_dfc(names(res), function(test){
       #messagef("Parsing test %s", test)
       if(test %in% c("RAT", "MDT", "MIQ")){
-        res[[test]] %>% as_tibble() %>% select(!starts_with("q")) %>% set_names(sprintf("%s.%s", test, names(.) %>% tolower() %>% str_replace(" ", "_")))
+        res[[test]] %>% 
+          as_tibble() %>% 
+          select(!starts_with("q")) %>% 
+          set_names(sprintf("%s.%s", test, names(.) %>% 
+                              tolower() %>% 
+                              str_replace(" ", "_")))
       }
       else if(test == "LIQ"){
         tmp <- mpipoet:::parse_LIQ_results(res)
@@ -136,26 +143,37 @@ parse_PARALA_results <- function(res){
   }
   ret
 }
+
 read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
+  tic("read RDS")
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
   assign("res", results, globalenv())
-  
-  map_dfr(results, function(res){
-    ret <- tryCatch({parse_PARALA_results(res)}, 
-                    error = function(e){})
-
-    ret
-  })
+  toc()
+  tic("Parse results")
+  ret <-
+    map_dfr(results, function(res){
+      tic("Parse single part")
+      ret <- tryCatch({parse_PARALA_results(res)}, 
+                      error = function(e){})
+      toc()
+      ret
+    })
+  toc()
+  ret
 }
 
 setup_workspace <- function(results = "data/results"){
   #browser()
+  tic("setup_workspace")
   master <- read_data(results)
+  toc()
   if(nrow(master) == 0){
+    stop("Empty")
     assign("master", tibble(), globalenv())
     return()
   }
+  tic("Post processing")
   master$DEG.gender[is.na(master$DEG.gender)] <- sample(1:4, size = sum(is.na(master$DEG.gender)), replace = T)
   master <- master %>% mutate(DEG.age = round(DEG.age/12), 
                               DEG.gender = factor(DEG.gender, 
@@ -169,7 +187,9 @@ setup_workspace <- function(results = "data/results"){
   #names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
   master <- add_participant_selection(master)
   master <- master %>% mutate(match_id = p_id == trimws(WMM_prolific_id))
+  toc()
   assign("master", master, globalenv())
+  master
 }
 
 get_correlations <- function(data, var_x, var_y, method = "pearson"){

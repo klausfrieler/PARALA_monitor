@@ -231,7 +231,7 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(5000, NULL, result_dir, setup_workspace)
+  check_data <- reactiveFileReader(1000, session, result_dir, setup_workspace)
 
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
@@ -305,7 +305,7 @@ server <- function(input, output, session) {
    }, options = list(lengthMenu = list(c(25, 50,  -1), c("25", "50",  "All"))))
    
   output$univariate_plot <- renderPlot({
-    check_data()
+    #check_data()
     if(nrow(master) == 0){
       return()
     }
@@ -329,7 +329,7 @@ server <- function(input, output, session) {
    })
 
   output$bivariate_plot <- renderPlot({
-    check_data()
+    #check_data()
     if(nrow(master) == 0){
       return()
     }
@@ -360,7 +360,7 @@ server <- function(input, output, session) {
     output$download_all_data_csv <- downloadHandler(
       filename = "PARALA_data.csv",
       content = function(file) {
-        check_data()
+        #check_data()
         if(nrow(master) == 0){
           return()
         }
