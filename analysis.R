@@ -73,15 +73,21 @@ parse_PARALA_results <- function(res){
     map_dfc(names(res), function(test){
       #messagef("Parsing test %s", test)
       if(test %in% c("RAT", "MDT", "MIQ")){
-        res[[test]] %>% 
+        #tic("1")
+        ret <- 
+          res[[test]][!str_detect(names(res[[test]]), "^q")] %>% 
           as_tibble() %>% 
-          select(!starts_with("q")) %>% 
+          #select(!starts_with("q")) %>% 
           set_names(sprintf("%s.%s", test, names(.) %>% 
                               tolower() %>% 
                               str_replace(" ", "_")))
+        #toc()
+        ret
       }
       else if(test == "LIQ"){
+        #tic("2")
         tmp <- mpipoet:::parse_LIQ_results(res)
+        #toc()
         #browser()
         tmp
       }
@@ -99,8 +105,11 @@ parse_PARALA_results <- function(res){
         tmp
       }
       else if(test %in% c("PRF", "WMM", "SRP")){
+        #tic("2")
         tmp <- res[[test]]
-        map_dfc(1:length(tmp), function(i){
+        
+        ret <- 
+          map_dfc(1:length(tmp), function(i){
           tmp <- tmp[[i]] %>% as.data.frame(stringsAsFactors = F)
           if(test == "PRF"){
             professions <- c("literature", "linguistic", "music")
@@ -112,18 +121,23 @@ parse_PARALA_results <- function(res){
           tmp[[1]] <- c("no", "yes")[as.integer(tmp[[1]])]
           tmp
         })
+        #toc()
+        ret
       }
       else{
+        #tic("5")
         if(length(res[[test]]) != length(unique(names(res[[test]])))){
           messagef("Found duplicated names in %s", test)
           res[[test]] <- res[[test]][unique(names(res[[test]]))]
         }
         data <- 
-          res[[test]] %>% 
+          res[[test]][!str_detect(names(res[[test]]), "^q|^items|^points")] %>% 
           as_tibble() %>% 
-          select(-starts_with("q"), -starts_with("items"), -starts_with("points")) %>% 
+          #select(-starts_with("q"), -starts_with("items"), -starts_with("points")) %>% 
           set_names(sprintf("%s.%s", test, names(.) %>% tolower() %>% str_replace_all(" ", "_")))
-        data[!duplicated(data), ]
+        data <- data[!duplicated(data), ]
+        #toc()
+        data
       }
     })
   if("session" %in% names(res)){
@@ -146,34 +160,34 @@ parse_PARALA_results <- function(res){
 
 read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
-  tic("read RDS")
+  tic()
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
   assign("res", results, globalenv())
-  toc()
-  tic("Parse results")
+  t <- toc(quiet = T)
+  messagef("Reading RDS: %.3f s elapsed.", t$toc- t$tic)
+  tic()
   ret <-
     map_dfr(results, function(res){
-      tic("Parse single part")
+      tic()
       ret <- tryCatch({parse_PARALA_results(res)}, 
                       error = function(e){})
-      toc()
+      t <- toc(quiet = T)
+      messagef("Parse single participants (%d entries): %.3f s elapsed.", length(res), t$toc- t$tic)
       ret
     })
-  toc()
+  t <- toc(quiet = T)
+  messagef("Parsed %d participants: %.3f s elapsed.", nrow(ret), t$toc- t$tic)
   ret
 }
 
 setup_workspace <- function(results = "data/results"){
   #browser()
-  tic("setup_workspace")
   master <- read_data(results)
-  toc()
   if(nrow(master) == 0){
-    stop("Empty")
     assign("master", tibble(), globalenv())
     return()
   }
-  tic("Post processing")
+  tic()
   master$DEG.gender[is.na(master$DEG.gender)] <- sample(1:4, size = sum(is.na(master$DEG.gender)), replace = T)
   master <- master %>% mutate(DEG.age = round(DEG.age/12), 
                               DEG.gender = factor(DEG.gender, 
@@ -187,7 +201,8 @@ setup_workspace <- function(results = "data/results"){
   #names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
   master <- add_participant_selection(master)
   master <- master %>% mutate(match_id = p_id == trimws(WMM_prolific_id))
-  toc()
+  t <- toc(quiet = T)
+  messagef("Post processing: %.3f elapsed", t$toc - t$tic)
   assign("master", master, globalenv())
   master
 }
