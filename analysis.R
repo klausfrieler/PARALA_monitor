@@ -158,6 +158,84 @@ parse_PARALA_results <- function(res){
   ret
 }
 
+cache_locked <- FALSE
+
+read_cache <- function(cache_dir = "data/cache"){
+  cache_file <- file.path(cache_dir, "cache.rds")
+  if(!file.exists(cache_file)){
+    return(tibble())
+  }
+  readRDS(cache_file)
+}
+
+save_cache <- function(data, cache_dir = "data/cache"){
+  if(!cache_locked){
+    cache_locked <- TRUE
+    saveRDS(data, file.path(cache_dir, "cache.rds"))
+    cache_locked <- FALSE
+  }
+}
+
+delete_cache <- function(cache_dir = "data/cache"){
+  unlink(file.path(cache_dir, "cache.rds"), recursive = T)
+}
+
+g_bad_ids <- c()
+update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cache"){
+  messagef("Caching  data from <%s> to <%s>", result_dir, cache_dir)
+  if(!file.exists(cache_dir)){
+    dir.create(cache_dir)  
+  } 
+  
+  cache <- read_cache(cache_dir)
+  cache_ids <- c()
+  if(nrow(cache) > 0){
+    messagef("Read cache with %d lines and %d distinct ids", nrow(cache), n_distinct(cache$p_id))
+    cache_ids <- unique(cache$p_id)
+  }
+  cache_content <- list.files(result_dir, pattern = "*.rds", full.names = T)
+  l <- length(cache_content)
+  
+  messagef("Found %d data files in <%s>", l, result_dir)
+  new_files <- cache_content
+  if(length(cache_ids) > 0 ){
+    #browser()
+    filter_ids <- c(cache_ids, g_bad_ids)
+    old_ids <- map(filter_ids, ~{which(str_detect(cache_content, .x))}) %>% unlist() %>% unique()
+    new_files <- cache_content[setdiff(1:l, old_ids)]
+    messagef("Found %d new data files in <%s>", length(new_files), result_dir)
+  }
+  if(length(new_files) == 0){
+    messagef("No new files.")
+    return(cache)
+  }
+  tic()
+  new_data <- purrr::map(new_files, ~{readRDS(.x) %>% as.list()})
+  #assign("res", new_data, globalenv())
+  t <- toc(quiet = T)
+  messagef("Reading RDS: %.3f s elapsed.", t$toc- t$tic)
+  tic()
+  ret <-
+    map_dfr(new_data, function(res){
+      tic()
+      res <- tryCatch({parse_PARALA_results(res)}, 
+                      error = function(e){
+                        g_bad_ids <<- c(g_bad_ids, res$session$p_id)
+                        messagef("#Bad ids: %d", length(g_bad_ids))
+                        NULL
+                        })
+      t <- toc(quiet = T)
+      #messagef("Parse single participants (%d entries): %.3f s elapsed.", length(res), t$toc- t$tic)
+      res
+    })
+  t <- toc(quiet = T)
+  
+  messagef("Parsed %d participants: %.3f s elapsed.", nrow(ret), t$toc- t$tic)
+  ret <- bind_rows(ret, cache)
+  save_cache(ret, cache_dir)
+  ret
+}
+
 read_data <- function(result_dir = "data/from_server"){
   messagef("Setting up data from %s", result_dir)
   tic()
@@ -166,13 +244,14 @@ read_data <- function(result_dir = "data/from_server"){
   t <- toc(quiet = T)
   messagef("Reading RDS: %.3f s elapsed.", t$toc- t$tic)
   tic()
+  
   ret <-
     map_dfr(results, function(res){
       tic()
       ret <- tryCatch({parse_PARALA_results(res)}, 
                       error = function(e){})
       t <- toc(quiet = T)
-      messagef("Parse single participants (%d entries): %.3f s elapsed.", length(res), t$toc- t$tic)
+      #messagef("Parse single participants (%d entries): %.3f s elapsed.", length(res), t$toc- t$tic)
       ret
     })
   t <- toc(quiet = T)
@@ -180,9 +259,9 @@ read_data <- function(result_dir = "data/from_server"){
   ret
 }
 
-setup_workspace <- function(results = "data/results"){
-  #browser()
-  master <- read_data(results)
+setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache"){
+  #master <- read_data(result_dir)
+  master <- update_cache(result_dir, cache_dir)
   if(nrow(master) == 0){
     assign("master", tibble(), globalenv())
     return()
@@ -205,6 +284,11 @@ setup_workspace <- function(results = "data/results"){
   messagef("Post processing: %.3f elapsed", t$toc - t$tic)
   assign("master", master, globalenv())
   master
+}
+
+update_workspace <- function(result_dir = "data/from_server"){
+  messagef("Callind update work_space")
+  setup_workspace(result_dir, cache_dir)
 }
 
 get_correlations <- function(data, var_x, var_y, method = "pearson"){

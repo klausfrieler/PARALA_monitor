@@ -22,13 +22,15 @@ source("plot_util.R")
 
 on_server <- grepl("shiny-server", getwd())
 if(on_server){
-    result_dir <- "../PARALA/output/results"
+    result_dir <<- "../PARALA/output/results"
+    cache_dir <<- "cache"
     options(shiny.autoreload = TRUE)
 } else{
     result_dir <- "data/from_server"
+    cache_dir <<- "data/cache"
 }
 
-setup_workspace(result_dir)
+setup_workspace(result_dir, cache_dir)
 
 var_choices <- setdiff(names(master), c("p_id",
                                        "session.time_started", 
@@ -231,7 +233,7 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(1000, session, result_dir, setup_workspace)
+  check_data <- reactiveFileReader(1000, session, result_dir, update_workspace)
 
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
