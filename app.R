@@ -233,7 +233,7 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(1000, session, result_dir, update_workspace)
+  check_data <- reactiveFileReader(1000, NULL, result_dir, update_workspace)
 
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
@@ -252,7 +252,6 @@ server <- function(input, output, session) {
    
    output$overall_stats <- renderTable({
       check_data()
-      data <- master
       if(nrow(master) == 0){
         return()
       }
@@ -294,7 +293,8 @@ server <- function(input, output, session) {
         set_names(str_to_title(names(.)))
     })
     output$raw_data <- renderDataTable({
-      check_data()
+      #check_data()
+      #update_workspace(result_dir, cache_dir)
       if(nrow(master) == 0){
         return()
       }
@@ -308,6 +308,7 @@ server <- function(input, output, session) {
    
   output$univariate_plot <- renderPlot({
     #check_data()
+    #update_workspace(result_dir, cache_dir)
     if(nrow(master) == 0){
       return()
     }
@@ -332,6 +333,7 @@ server <- function(input, output, session) {
 
   output$bivariate_plot <- renderPlot({
     #check_data()
+    #update_workspace(result_dir, cache_dir)
     if(nrow(master) == 0){
       return()
     }
