@@ -276,7 +276,7 @@ setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache
   master$DEG.age[is.na(master$DEG.age)] <- 99
   master <- master %>% 
     mutate(DEG.age_group = DEG.age > 30) %>% 
-    mutate(DEG.age_group = factor(DEG.age_group, labels = c("<30", "30+"))) %>% filter(!is.na(EDU.education))
+    mutate(DEG.age_group = factor(DEG.age_group, labels = c("<30", "30+"))) #%>% filter(!is.na(EDU.education))
   #names(master)[str_detect(names(master), "^LIQ")] <- LIQ_items_map
   master <- add_participant_selection(master)
   master <- master %>% mutate(match_id = p_id == trimws(WMM_prolific_id))

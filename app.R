@@ -233,7 +233,7 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(1000, NULL, result_dir, update_workspace)
+  check_data <- reactiveFileReader(5000, NULL, result_dir, update_workspace)
 
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
