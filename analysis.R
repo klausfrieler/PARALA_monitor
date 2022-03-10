@@ -260,8 +260,8 @@ read_data <- function(result_dir = "data/from_server"){
 }
 
 setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache"){
-  #master <- read_data(result_dir)
-  master <- update_cache(result_dir, cache_dir)
+  master <- read_data(result_dir)
+  #master <- update_cache(result_dir, cache_dir)
   if(nrow(master) == 0){
     assign("master", tibble(), globalenv())
     return()
