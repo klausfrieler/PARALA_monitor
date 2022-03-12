@@ -160,7 +160,7 @@ parse_PARALA_results <- function(res){
 
 cache_locked <- FALSE
 
-read_cache <- function(cache_dir = "data/cache"){
+read_cache <- function(cache_dir = g_cache_dir){
   cache_file <- file.path(cache_dir, "cache.rds")
   if(!file.exists(cache_file)){
     return(tibble())
@@ -168,7 +168,7 @@ read_cache <- function(cache_dir = "data/cache"){
   readRDS(cache_file)
 }
 
-save_cache <- function(data, cache_dir = "data/cache"){
+save_cache <- function(data, cache_dir = cache_dir){
   if(!cache_locked){
     cache_locked <- TRUE
     saveRDS(data, file.path(cache_dir, "cache.rds"))
@@ -176,12 +176,12 @@ save_cache <- function(data, cache_dir = "data/cache"){
   }
 }
 
-delete_cache <- function(cache_dir = "data/cache"){
+delete_cache <- function(cache_dir = g_cache_dir){
   unlink(file.path(cache_dir, "cache.rds"), recursive = T)
 }
 
 g_bad_ids <- c()
-update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cache"){
+update_cache <- function(result_dir = g_result_dir, cache_dir = g_cache_dir){
   messagef("Caching  data from <%s> to <%s>", result_dir, cache_dir)
   if(!file.exists(cache_dir)){
     dir.create(cache_dir)  
@@ -199,7 +199,7 @@ update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cach
   messagef("Found %d data files in <%s>", l, result_dir)
   new_files <- result_files
   if(length(cache_ids) > 0 ){
-    browser()
+    #browser()
     ids <- str_extract(result_files, "p_id=[a-z0-9]+") %>% str_replace("p_id=", "")
     complete <- str_extract(result_files, "complete=[a-z]+") %>% str_replace("complete=", "") %>% 
       toupper() %>% 
@@ -218,20 +218,6 @@ update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cach
     new_files <- file_stats %>% 
       filter(!is_bad, !(in_cache & any_complete)) %>% 
       pull(fname)
-    # filter_ids <- c(cache_ids, g_bad_ids)
-    # old_ids <- map(filter_ids, 
-    #                ~{
-    #                  which(str_detect(result_files, .x))
-    #                  }) %>% 
-    #   unlist() %>% 
-    #   unique()
-    # incomplete_ids <- map(cache_ids, 
-    #                       ~{
-    #                         which(str_detect(result_files, "complete=false"))
-    #                       }) %>% 
-    #   unlist() %>% 
-    #   unique()
-    # new_files <- result_files[setdiff(1:l, old_ids)]
     messagef("Found %d new data files in <%s>", length(new_files), result_dir)
   }
   if(length(new_files) == 0){
@@ -267,7 +253,7 @@ update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cach
   ret
 }
 
-read_data <- function(result_dir = "data/from_server"){
+read_data <- function(result_dir = g_result_dir){
   messagef("Setting up data from %s", result_dir)
   tic()
   results <- purrr::map(list.files(result_dir, pattern = "*.rds", full.names = T), ~{readRDS(.x) %>% as.list()})
@@ -290,7 +276,7 @@ read_data <- function(result_dir = "data/from_server"){
   ret
 }
 
-setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache"){
+setup_workspace <- function(result_dir = g_result_dir, cache_dir = g_cache_dir){
   #master <- read_data(result_dir)
   master <- update_cache(result_dir, cache_dir)
   if(nrow(master) == 0){
@@ -317,9 +303,9 @@ setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache
   master
 }
 
-update_workspace <- function(result_dir = "data/from_server"){
+update_workspace <- function(result_dir = g_result_dir){
   messagef("Callind update work_space")
-  setup_workspace(result_dir, cache_dir)
+  setup_workspace(result_dir, g_cache_dir)
 }
 
 get_correlations <- function(data, var_x, var_y, method = "pearson"){

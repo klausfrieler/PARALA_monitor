@@ -17,20 +17,21 @@ library(thematic)
 library(waiter)
 thematic_shiny()
 
+on_server <- grepl("shiny-server", getwd())
+if(on_server){
+  g_result_dir <<- "../PARALA/output/results"
+  g_cache_dir <<- "cache"
+  options(shiny.autoreload = TRUE)
+} else{
+  g_result_dir <- "data/from_server"
+  g_cache_dir <<- "data/cache"
+}
+
 source("analysis.R")
 source("plot_util.R")
 
-on_server <- grepl("shiny-server", getwd())
-if(on_server){
-    result_dir <<- "../PARALA/output/results"
-    cache_dir <<- "cache"
-    options(shiny.autoreload = TRUE)
-} else{
-    result_dir <- "data/from_server"
-    cache_dir <<- "data/cache"
-}
 
-setup_workspace(result_dir, cache_dir)
+setup_workspace(g_result_dir, g_cache_dir)
 
 var_choices <- setdiff(names(master), c("p_id",
                                        "session.time_started", 
@@ -233,7 +234,7 @@ server <- function(input, output, session) {
 
   message("*** STARTING APP***")
   #browser()
-  check_data <- reactiveFileReader(5000, NULL, result_dir, setup_workspace)
+  check_data <- reactiveFileReader(5000, NULL, g_result_dir, setup_workspace, g_cache_dir)
 
   shiny::observeEvent(input$switch_axes, {
     x <- input$bv_variable1
