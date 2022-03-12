@@ -193,16 +193,45 @@ update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cach
     messagef("Read cache with %d lines and %d distinct ids", nrow(cache), n_distinct(cache$p_id))
     cache_ids <- unique(cache$p_id)
   }
-  cache_content <- list.files(result_dir, pattern = "*.rds", full.names = T)
-  l <- length(cache_content)
+  result_files <- list.files(result_dir, pattern = "*.rds", full.names = T)
+  l <- length(result_files)
   
   messagef("Found %d data files in <%s>", l, result_dir)
-  new_files <- cache_content
+  new_files <- result_files
   if(length(cache_ids) > 0 ){
-    #browser()
-    filter_ids <- c(cache_ids, g_bad_ids)
-    old_ids <- map(filter_ids, ~{which(str_detect(cache_content, .x))}) %>% unlist() %>% unique()
-    new_files <- cache_content[setdiff(1:l, old_ids)]
+    browser()
+    ids <- str_extract(result_files, "p_id=[a-z0-9]+") %>% str_replace("p_id=", "")
+    complete <- str_extract(result_files, "complete=[a-z]+") %>% str_replace("complete=", "") %>% 
+      toupper() %>% 
+      as.logical()
+    file_stats <- tibble(fname = result_files, 
+                         p_id = ids, 
+                         is_complete = complete) %>% 
+      group_by(p_id) %>% 
+      mutate(n_files = n(), 
+             any_complete = any(complete), 
+             is_bad = FALSE,
+             in_cache = FALSE) %>% 
+      ungroup()
+    file_stats[file_stats$p_id %in% g_bad_ids,]$is_bad <- TRUE
+    file_stats[file_stats$p_id %in% cache_ids,]$in_cache <- TRUE
+    new_files <- file_stats %>% 
+      filter(!is_bad, !(in_cache & any_complete)) %>% 
+      pull(fname)
+    # filter_ids <- c(cache_ids, g_bad_ids)
+    # old_ids <- map(filter_ids, 
+    #                ~{
+    #                  which(str_detect(result_files, .x))
+    #                  }) %>% 
+    #   unlist() %>% 
+    #   unique()
+    # incomplete_ids <- map(cache_ids, 
+    #                       ~{
+    #                         which(str_detect(result_files, "complete=false"))
+    #                       }) %>% 
+    #   unlist() %>% 
+    #   unique()
+    # new_files <- result_files[setdiff(1:l, old_ids)]
     messagef("Found %d new data files in <%s>", length(new_files), result_dir)
   }
   if(length(new_files) == 0){
@@ -210,7 +239,9 @@ update_cache <- function(result_dir = "data/from_server", cache_dir = "data/cach
     return(cache)
   }
   tic()
-  new_data <- purrr::map(new_files, ~{readRDS(.x) %>% as.list()})
+  new_data <- purrr::map(new_files, ~{
+    readRDS(.x) %>% as.list()
+    })
   #assign("res", new_data, globalenv())
   t <- toc(quiet = T)
   messagef("Reading RDS: %.3f s elapsed.", t$toc- t$tic)
@@ -260,8 +291,8 @@ read_data <- function(result_dir = "data/from_server"){
 }
 
 setup_workspace <- function(result_dir = "data/results", cache_dir = "data/cache"){
-  master <- read_data(result_dir)
-  #master <- update_cache(result_dir, cache_dir)
+  #master <- read_data(result_dir)
+  master <- update_cache(result_dir, cache_dir)
   if(nrow(master) == 0){
     assign("master", tibble(), globalenv())
     return()
