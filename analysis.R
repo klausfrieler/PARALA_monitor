@@ -186,37 +186,42 @@ update_cache <- function(result_dir = g_result_dir, cache_dir = g_cache_dir){
   if(!file.exists(cache_dir)){
     dir.create(cache_dir)  
   } 
-  
+  #browser()
   cache <- read_cache(cache_dir)
-  cache_ids <- c()
+  
+  cache_ids_complete <- c()
   if(nrow(cache) > 0){
     messagef("Read cache with %d lines and %d distinct ids", nrow(cache), n_distinct(cache$p_id))
-    cache_ids <- unique(cache$p_id)
+    cache <- cache %>% 
+      group_by(p_id) %>% 
+      mutate(any_complete = any(session.complete)) %>% 
+      ungroup()
+    cache_ids_complete <- unique(cache[cache$any_complete,]$p_id)
   }
   result_files <- list.files(result_dir, pattern = "*.rds", full.names = T)
   l <- length(result_files)
   
   messagef("Found %d data files in <%s>", l, result_dir)
   new_files <- result_files
-  if(length(cache_ids) > 0 ){
+  if(length(cache_ids_complete) > 0 ){
     #browser()
     ids <- str_extract(result_files, "p_id=[a-z0-9]+") %>% str_replace("p_id=", "")
     complete <- str_extract(result_files, "complete=[a-z]+") %>% str_replace("complete=", "") %>% 
       toupper() %>% 
       as.logical()
+    #browser()
     file_stats <- tibble(fname = result_files, 
                          p_id = ids, 
                          is_complete = complete) %>% 
       group_by(p_id) %>% 
       mutate(n_files = n(), 
-             any_complete = any(complete), 
              is_bad = FALSE,
              in_cache = FALSE) %>% 
       ungroup()
     file_stats[file_stats$p_id %in% g_bad_ids,]$is_bad <- TRUE
-    file_stats[file_stats$p_id %in% cache_ids,]$in_cache <- TRUE
+    file_stats[file_stats$p_id %in% cache_ids_complete,]$in_cache <- TRUE
     new_files <- file_stats %>% 
-      filter(!is_bad, !(in_cache & any_complete)) %>% 
+      filter(!is_bad, !in_cache) %>% 
       pull(fname)
     messagef("Found %d new data files in <%s>", length(new_files), result_dir)
   }
@@ -248,7 +253,10 @@ update_cache <- function(result_dir = g_result_dir, cache_dir = g_cache_dir){
   t <- toc(quiet = T)
   
   messagef("Parsed %d participants: %.3f s elapsed.", nrow(ret), t$toc- t$tic)
-  ret <- bind_rows(ret, cache)
+  ret <- bind_rows(ret, cache) %>% 
+    distinct(p_id, session.time_started, session.complete, .keep_all = T) 
+  #browser()
+  ret$any_complete <- NULL
   save_cache(ret, cache_dir)
   ret
 }
